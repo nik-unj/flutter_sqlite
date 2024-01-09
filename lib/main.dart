@@ -13,9 +13,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
+      debugShowCheckedModeBanner: false,
       home: const HomePage(),
     );
   }
@@ -33,11 +34,53 @@ class _HomePageState extends State<HomePage> {
   TextEditingController desc = TextEditingController();
   List<Note> _notes = [];
   late SqliteService _sqliteService;
+  bool _isediting = false;
   void _refreshNotes() async {
     final data = await _sqliteService.getItems();
     setState(() {
       _notes = data;
     });
+  }
+
+  void addNote() {
+    if (id.text.isNotEmpty && desc.text.isNotEmpty) {
+      _sqliteService
+          .createItem(Note(id: int.parse(id.text), description: desc.text));
+    }
+    _refreshNotes();
+    id.clear();
+    desc.clear();
+  }
+
+  void editNote(int noteId) async {
+    Note note = _notes.firstWhere((element) => element.id == noteId);
+    setState(() {
+      id.text = note.id.toString();
+      desc.text = note.description;
+      _isediting = true;
+    });
+  }
+
+  void updateNote(int noteId) async {
+    if (id.text.isNotEmpty && desc.text.isNotEmpty) {
+      await _sqliteService.update(
+        Note(
+          id: int.parse(id.text),
+          description: desc.text,
+        ),
+      );
+    }
+    id.clear();
+    desc.clear();
+    setState(() {
+      _isediting = false;
+    });
+    _refreshNotes();
+  }
+
+  void deleteNote(int noteId) async {
+    await _sqliteService.deleteItem(noteId.toString());
+    _refreshNotes();
   }
 
   @override
@@ -81,6 +124,7 @@ class _HomePageState extends State<HomePage> {
                     hintText: '123',
                   ),
                   keyboardType: TextInputType.number,
+                  readOnly: _isediting,
                 ),
               ),
               Padding(
@@ -101,15 +145,14 @@ class _HomePageState extends State<HomePage> {
               Center(
                 child: ElevatedButton(
                   onPressed: () {
-                    if (id.text.isNotEmpty && desc.text.isNotEmpty) {
-                      _sqliteService.createItem(
-                          Note(id: int.parse(id.text), description: desc.text));
+                    if (_isediting) {
+                      final int noteId = int.parse(id.text);
+                      updateNote(noteId);
+                    } else {
+                      addNote();
                     }
-                    _refreshNotes();
-                    id.clear();
-                    desc.clear();
                   },
-                  child: const Text("Add"),
+                  child: Text(_isediting ? "Update" : "Add"),
                 ),
               ),
               const Padding(
@@ -135,22 +178,32 @@ class _HomePageState extends State<HomePage> {
                     )
                   : Expanded(
                       child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: _notes.length,
-                          itemBuilder: (context, index) {
-                            return ListTile(
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () async {
-                                  await _sqliteService
-                                      .deleteItem(_notes[index].id.toString());
-                                  _refreshNotes();
-                                },
+                        shrinkWrap: true,
+                        itemCount: _notes.length,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            trailing: SizedBox(
+                              width: 100,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () async {
+                                      editNote(_notes[index].id);
+                                    },
+                                  ),
+                                  IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      onPressed: () =>
+                                          deleteNote(_notes[index].id))
+                                ],
                               ),
-                              title: Text(_notes[index].id.toString()),
-                              subtitle: Text(_notes[index].description),
-                            );
-                          }),
+                            ),
+                            title: Text(_notes[index].id.toString()),
+                            subtitle: Text(_notes[index].description),
+                          );
+                        },
+                      ),
                     ),
             ],
           ),

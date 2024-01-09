@@ -31,6 +31,12 @@ class SqliteService {
     return queryResult.map((e) => Note.fromMap(e)).toList();
   }
 
+  Future<int> update(Note note) async {
+    final db = await initializeDB();
+    return db
+        .update('Notes', note.toMap(), where: "id = ?", whereArgs: [note.id]);
+  }
+
   Future<void> deleteItem(String id) async {
     final db = await initializeDB();
     try {
