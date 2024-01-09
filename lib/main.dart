@@ -42,14 +42,25 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void alert(String message, {bool success = true}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: success ? Colors.green : Colors.red,
+      duration: const Duration(seconds: 1),
+    ));
+  }
+
   void addNote() {
     if (id.text.isNotEmpty && desc.text.isNotEmpty) {
       _sqliteService
           .createItem(Note(id: int.parse(id.text), description: desc.text));
+      alert("Note Added");
+      id.clear();
+      desc.clear();
+    } else {
+      alert("Please fill all the fields", success: false);
     }
     _refreshNotes();
-    id.clear();
-    desc.clear();
   }
 
   void editNote(int noteId) async {
@@ -69,17 +80,22 @@ class _HomePageState extends State<HomePage> {
           description: desc.text,
         ),
       );
+      alert("Note $noteId Updated");
+      id.clear();
+      desc.clear();
+      setState(() {
+        _isediting = false;
+      });
+    } else {
+      alert("Please fill all the fields", success: false);
     }
-    id.clear();
-    desc.clear();
-    setState(() {
-      _isediting = false;
-    });
+
     _refreshNotes();
   }
 
   void deleteNote(int noteId) async {
     await _sqliteService.deleteItem(noteId.toString());
+    alert("Note $noteId Deleted", success: false);
     _refreshNotes();
   }
 
@@ -151,6 +167,7 @@ class _HomePageState extends State<HomePage> {
                     } else {
                       addNote();
                     }
+                    FocusScope.of(context).requestFocus(FocusNode());
                   },
                   child: Text(_isediting ? "Update" : "Add"),
                 ),
